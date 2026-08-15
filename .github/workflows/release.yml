@@ -41,7 +41,7 @@ jobs:
           show-progress: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
