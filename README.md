@@ -45,6 +45,9 @@
 
 Consumed by [ASF-ui](https://github.com/Jeremias0618/ASF-ui) bot social modals (`/bot/:name/…`).
 
+> [!IMPORTANT]
+> **UI required:** this plugin only works with the modified web UI at [Jeremias0618/ASF-ui](https://github.com/Jeremias0618/ASF-ui). The official [JustArchiNET/ASF-ui](https://github.com/JustArchiNET/ASF-ui) (the `www/` that ships with ASF) has no routes, pages, or HTML for Bot Social. The DLL exposes IPC; without that fork you will not see friends, community, games, wishlist, or inventory-transfer screens.
+
 ### Layout
 
 ```text
@@ -79,9 +82,10 @@ Inventory **read** uses official ASF IPC (`GET /Api/Bot/{bot}/Inventory…`). Tr
 
 ### Compatibility
 
+- **Web UI:** [Jeremias0618/ASF-ui](https://github.com/Jeremias0618/ASF-ui) only. Official ASF-ui is **not** compatible.
 - Plugin DLL must match the **exact** `ArchiSteamFarm.exe` version (strong-name).
 - Current target: **6.3.8.4** (`ASFTargetVersion` in the `.csproj`).
-- Restart ASF after copying the DLL.
+- Restart ASF after copying the DLL (and after deploying the fork UI to `www/`).
 - Mutations are rate-limited. Abuse risks Steam ToS issues.
 
 ## Development
@@ -106,7 +110,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 | Piece | Repo |
 |-------|------|
-| UI | https://github.com/Jeremias0618/ASF-ui |
+| UI (required) | https://github.com/Jeremias0618/ASF-ui |
 | Core | https://github.com/JustArchiNET/ArchiSteamFarm |
 | Template | https://github.com/JustArchiNET/ASF-PluginTemplate |
 

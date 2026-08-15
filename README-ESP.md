@@ -45,6 +45,9 @@
 
 Lo consume [ASF-ui](https://github.com/Jeremias0618/ASF-ui) en los modales sociales del bot (`/bot/:name/…`).
 
+> [!IMPORTANT]
+> **UI obligatoria:** este plugin solo se puede usar con la interfaz web modificada [Jeremias0618/ASF-ui](https://github.com/Jeremias0618/ASF-ui). La UI oficial [JustArchiNET/ASF-ui](https://github.com/JustArchiNET/ASF-ui) (el `www/` que trae ASF) no incluye las rutas, páginas ni el HTML de Bot Social. El DLL expone IPC; sin ese fork no verás las pantallas de amigos, comunidad, juegos, wishlist ni transferencia de inventario.
+
 ### Estructura
 
 ```text
@@ -79,9 +82,10 @@ La **lectura** de inventario usa el IPC oficial de ASF (`GET /Api/Bot/{bot}/Inve
 
 ### Compatibilidad
 
+- **Web UI:** solo [Jeremias0618/ASF-ui](https://github.com/Jeremias0618/ASF-ui). La UI oficial de ASF **no** es compatible.
 - El DLL del plugin debe coincidir con la versión **exacta** de `ArchiSteamFarm.exe` (strong-name).
 - Objetivo actual: **6.3.8.4** (`ASFTargetVersion` en el `.csproj`).
-- Reinicia ASF después de copiar el DLL.
+- Reinicia ASF después de copiar el DLL (y de desplegar la UI del fork en `www/`).
 - Las mutaciones tienen rate limit. El abuso puede vulnerar los ToS de Steam.
 
 ## Desarrollo
@@ -106,7 +110,7 @@ Ver [CONTRIBUTING.md](CONTRIBUTING.md) (en inglés).
 
 | Pieza | Repo |
 |-------|------|
-| UI | https://github.com/Jeremias0618/ASF-ui |
+| UI (obligatoria) | https://github.com/Jeremias0618/ASF-ui |
 | Núcleo | https://github.com/JustArchiNET/ArchiSteamFarm |
 | Plantilla | https://github.com/JustArchiNET/ASF-PluginTemplate |
 
