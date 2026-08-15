@@ -94,7 +94,7 @@ dotnet build ASFBotSocial/ASFBotSocial.csproj -c Release
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| **Plugin CI** | push/PR to `main`/`develop` | Debug + Release build (Ubuntu + Windows), artifact DLL |
+| **Plugin CI** | push/PR to `main`/`develop` | Release build (Ubuntu), artifact DLL |
 | **Plugin Release** | tag `v*` | ZIP + GitHub Release |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

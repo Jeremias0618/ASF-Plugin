@@ -24,7 +24,7 @@ dotnet build ASFBotSocial/ASFBotSocial.csproj -c Release
 
 1. Branch from `main` (`feature/*` or `bugfix/*`).
 2. Keep PRs focused; update `CHANGELOG.md` for user-visible IPC / behavior changes.
-3. CI (`Plugin CI`) must pass on Debug + Release.
+3. CI (`Plugin CI`) must pass (Release build on Ubuntu).
 
 ## Releases
 

@@ -22,13 +22,8 @@ env:
 
 jobs:
   build:
-    name: Build (${{ matrix.configuration }} / ${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        configuration: [Debug, Release]
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    name: Build (Release)
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
@@ -56,17 +51,16 @@ jobs:
       - name: Restore
         run: dotnet restore ASFBotSocial.sln --nologo
 
-      - name: Build ${{ matrix.configuration }}
+      - name: Build Release
         run: >
           dotnet build ASFBotSocial/ASFBotSocial.csproj
-          -c ${{ matrix.configuration }}
+          -c Release
           --nologo
           -p:ASFTargetVersion=${{ env.ASF_TARGET_VERSION }}
           -p:ContinuousIntegrationBuild=true
           --no-restore
 
       - name: Upload Release DLL
-        if: matrix.configuration == 'Release' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ASFBotSocial-dll
