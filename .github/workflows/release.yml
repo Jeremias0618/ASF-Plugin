@@ -28,12 +28,12 @@ jobs:
 
     steps:
       - name: Checkout plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           show-progress: false
 
       - name: Checkout ArchiSteamFarm
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: JustArchiNET/ArchiSteamFarm
           ref: ${{ env.ASF_TARGET_VERSION }}
