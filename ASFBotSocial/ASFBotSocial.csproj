@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Library</OutputType>
+		<AssemblyName>ASFBotSocial</AssemblyName>
+		<RootNamespace>ASFBotSocial</RootNamespace>
+		<Version>1.1.50</Version>
+		<Authors>Jeremias0618</Authors>
+		<Description>ASF plugin: friends, games, wishlist and inventory transfer IPC for ASF-ui Bot Social Hub.</Description>
+		<!-- Must match ArchiSteamFarm.exe used at runtime (strong-name bind). -->
+		<ASFTargetVersion>6.3.8.4</ASFTargetVersion>
+	</PropertyGroup>
+
+	<!-- Resolve ArchiSteamFarm project for monorepo sibling OR local/CI checkout under ASF-Plugin/ArchiSteamFarm. -->
+	<PropertyGroup>
+		<ASFProjectPath Condition="'$(ASFProjectPath)' == '' AND Exists('$(MSBuildThisFileDirectory)..\ArchiSteamFarm\ArchiSteamFarm\ArchiSteamFarm.csproj')">$(MSBuildThisFileDirectory)..\ArchiSteamFarm\ArchiSteamFarm\ArchiSteamFarm.csproj</ASFProjectPath>
+		<ASFProjectPath Condition="'$(ASFProjectPath)' == '' AND Exists('$(MSBuildThisFileDirectory)..\..\ArchiSteamFarm\ArchiSteamFarm\ArchiSteamFarm.csproj')">$(MSBuildThisFileDirectory)..\..\ArchiSteamFarm\ArchiSteamFarm\ArchiSteamFarm.csproj</ASFProjectPath>
+	</PropertyGroup>
+
+	<Target Name="EnsureAsfProjectPath" BeforeTargets="ResolveProjectReferences">
+		<Error
+			Condition="'$(ASFProjectPath)' == '' OR !Exists('$(ASFProjectPath)')"
+			Text="ArchiSteamFarm project not found. Clone JustArchiNET/ArchiSteamFarm next to this repo (monorepo) or under ASF-Plugin/ArchiSteamFarm (see scripts/setup-asf-ref.ps1), or pass -p:ASFProjectPath=..." />
+	</Target>
+
+	<ItemGroup>
+		<PackageReference Include="JetBrains.Annotations" Version="2024.3.0" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+		<PackageReference Include="SteamKit2" Version="3.4.0" />
+		<PackageReference Include="System.Composition.AttributedModel" Version="10.0.10" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Compile against ASF APIs; stamp Version to the runtime ASF so the plugin loads. -->
+		<ProjectReference
+			Include="$(ASFProjectPath)"
+			ExcludeAssets="all"
+			Private="false"
+			ReferenceOutputAssembly="true"
+			SetConfiguration="Configuration=Release"
+			AdditionalProperties="Version=$(ASFTargetVersion);AssemblyVersion=$(ASFTargetVersion);FileVersion=$(ASFTargetVersion);InformationalVersion=$(ASFTargetVersion)" />
+	</ItemGroup>
+</Project>

@@ -1,4 +1,0 @@
-c:\xampp\htdocs\GitHub\ASF\ASF-Plugin\IpcConfig\src\bin\publish\Release\IpcConfig.dll
-c:\xampp\htdocs\GitHub\ASF\ASF-Plugin\IpcConfig\src\bin\publish\Release\IpcConfig.deps.json
-c:\xampp\htdocs\GitHub\ASF\ASF-Plugin\IpcConfig\src\bin\publish\Release\IpcConfig.pdb
-c:\xampp\htdocs\GitHub\ASF\ASF-Plugin\IpcConfig\src\bin\publish\Release\System.Composition.AttributedModel.dll

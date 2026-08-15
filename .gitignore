@@ -1,0 +1,44 @@
+**/bin/
+**/obj/
+**/dist/
+dist/
+.artifacts/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+*.ncrunch*
+_NCrunch_*
+*.received.*
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Local scratch / dump projects (never publish)
+tmp-*/
+tmp-il/
+tmp-sk/
+dump/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Local-only tooling
+scripts/
+.githooks/
+
+# Local ArchiSteamFarm checkout used by standalone CI/dev (clone, do not vendor)
+/ArchiSteamFarm/
+
+# Secrets / local env
+.env
+.env.*
+*.pfx
+*.key
+secrets/

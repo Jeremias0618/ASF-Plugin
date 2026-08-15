@@ -1,0 +1,83 @@
+name: Plugin Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to package (e.g. v1.1.50). Leave empty when triggered by tag push."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+  DOTNET_SDK_VERSION: "10.0.x"
+  ASF_TARGET_VERSION: "6.3.8.4"
+
+jobs:
+  release:
+    name: Pack and publish GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: Checkout ArchiSteamFarm
+        uses: actions/checkout@v4
+        with:
+          repository: JustArchiNET/ArchiSteamFarm
+          ref: ${{ env.ASF_TARGET_VERSION }}
+          path: ArchiSteamFarm
+          show-progress: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Build Release
+        run: >
+          dotnet build ASFBotSocial/ASFBotSocial.csproj
+          -c Release
+          --nologo
+          -p:ASFTargetVersion=${{ env.ASF_TARGET_VERSION }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Pack ZIP
+        shell: pwsh
+        run: |
+          $dll = "ASFBotSocial/bin/Release/net10.0/ASFBotSocial.dll"
+          if (-not (Test-Path $dll)) { throw "Missing $dll" }
+          New-Item -ItemType Directory -Force -Path dist/ASFBotSocial | Out-Null
+          Copy-Item -Force $dll dist/ASFBotSocial/
+          if (Test-Path dist/ASFBotSocial.zip) { Remove-Item -Force dist/ASFBotSocial.zip }
+          Compress-Archive -Path dist/ASFBotSocial/* -DestinationPath dist/ASFBotSocial.zip -Force
+
+      - name: Resolve tag
+        id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          files: dist/ASFBotSocial.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,3 +1,0 @@
-C:\xampp\htdocs\GitHub\ASF\ASF-Plugin\IpcConfig\src\bin\publish\Release\IpcConfig.dll
-C:\xampp\htdocs\GitHub\ASF\ASF-Plugin\IpcConfig\src\bin\publish\Release\IpcConfig.pdb
-C:\xampp\htdocs\GitHub\ASF\ASF-Plugin\IpcConfig\src\bin\publish\Release\IpcConfig.deps.json

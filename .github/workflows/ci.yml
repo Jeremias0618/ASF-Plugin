@@ -1,0 +1,75 @@
+name: Plugin CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: plugin-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+  DOTNET_SDK_VERSION: "10.0.x"
+  ASF_TARGET_VERSION: "6.3.8.4"
+
+jobs:
+  build:
+    name: Build (${{ matrix.configuration }} / ${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: Checkout ArchiSteamFarm
+        uses: actions/checkout@v4
+        with:
+          repository: JustArchiNET/ArchiSteamFarm
+          ref: ${{ env.ASF_TARGET_VERSION }}
+          path: ArchiSteamFarm
+          show-progress: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Verify .NET
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore ASFBotSocial.sln --nologo
+
+      - name: Build ${{ matrix.configuration }}
+        run: >
+          dotnet build ASFBotSocial/ASFBotSocial.csproj
+          -c ${{ matrix.configuration }}
+          --nologo
+          -p:ASFTargetVersion=${{ env.ASF_TARGET_VERSION }}
+          -p:ContinuousIntegrationBuild=true
+          --no-restore
+
+      - name: Upload Release DLL
+        if: matrix.configuration == 'Release' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASFBotSocial-dll
+          path: ASFBotSocial/bin/Release/net10.0/ASFBotSocial.dll
+          if-no-files-found: error
+          retention-days: 14
