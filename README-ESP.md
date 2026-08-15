@@ -14,12 +14,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jeremias0618/ASF-Plugin/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Jeremias0618/ASF-Plugin/ci.yml?branch=main&label=CI" alt="CI" /></a>
+  <a href="https://github.com/Jeremias0618/ASF-Plugin/actions/workflows/ci.yml"><img src="https://github.com/Jeremias0618/ASF-Plugin/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License" /></a>
   <img src="https://img.shields.io/badge/ASF-6.3.8.4-informational" alt="ASF target" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4" alt=".NET" />
+</p>
+
+<p align="center">
   <a href="https://hits.sh/github.com/Jeremias0618/ASF-Plugin/">
-    <img src="https://hits.sh/github.com/Jeremias0618/ASF-Plugin.svg?style=for-the-badge&label=Visitors&color=0e75b6" alt="Visitas al repositorio" />
+    <img src="https://hits.sh/github.com/Jeremias0618/ASF-Plugin.svg?style=flat-square&label=visitors&color=0e75b6" alt="Visitas al repositorio" />
   </a>
 </p>
 

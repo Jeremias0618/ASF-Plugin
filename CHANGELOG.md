@@ -2,6 +2,11 @@
 
 All notable changes to **ASFBotSocial** are documented in this file.
 
+### [2026-08-15] Repo hygiene
+
+- **Dependabot:** removed `.github/dependabot.yml` so weekly version-update PRs are no longer opened.
+- **OpenApi:** pin `Microsoft.OpenApi` 2.7.5 (GHSA-v5pm-xwqc-g5wc).
+
 ### [1.1.50] - 2026-08-14
 
 - **Wishlist:** `EndpointRateLimiter` on `Wishlist/Add` and `Wishlist/Remove` (3s).
