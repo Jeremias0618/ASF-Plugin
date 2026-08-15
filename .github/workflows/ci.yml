@@ -61,7 +61,7 @@ jobs:
           --no-restore
 
       - name: Upload Release DLL
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ASFBotSocial-dll
           path: ASFBotSocial/bin/Release/net10.0/ASFBotSocial.dll
