@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://cdn.simpleicons.org/steam/1B2838" alt="ASF-Plugin" width="96" height="96" />
+  <img src=".github/previews/steam-logo-transparent.png" alt="ASF-Plugin" width="96" height="96" />
 </p>
 
 <h1 align="center">ASF-Plugin</h1>
@@ -18,6 +18,9 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License" /></a>
   <img src="https://img.shields.io/badge/ASF-6.3.8.4-informational" alt="ASF target" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4" alt=".NET" />
+  <a href="https://github.com/Jeremias0618/ASF-Plugin/releases">
+    <img src="https://img.shields.io/github/downloads/Jeremias0618/ASF-Plugin/total?style=flat&label=downloads" alt="GitHub Releases downloads" />
+  </a>
 </p>
 
 <p align="center">
