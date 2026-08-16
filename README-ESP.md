@@ -48,7 +48,47 @@ Lo consume [ASF-ui](https://github.com/Jeremias0618/ASF-ui) en los modales socia
 > [!IMPORTANT]
 > **UI obligatoria:** este plugin solo se puede usar con la interfaz web modificada [Jeremias0618/ASF-ui](https://github.com/Jeremias0618/ASF-ui). La UI oficial [JustArchiNET/ASF-ui](https://github.com/JustArchiNET/ASF-ui) (el `www/` que trae ASF) no incluye las rutas, páginas ni el HTML de Bot Social. El DLL expone IPC; sin ese fork no verás las pantallas de amigos, comunidad, juegos, wishlist ni transferencia de inventario.
 
-### Estructura
+## Instalación (release compilado)
+
+Los usuarios **no** necesitan .NET. Descarga **ASFBotSocial.zip** desde [GitHub Releases](https://github.com/Jeremias0618/ASF-Plugin/releases).
+
+1. Detén ArchiSteamFarm.
+2. Descarga **ASFBotSocial.zip** del último release.
+3. Extrae el ZIP en **`plugins/ASFBotSocial/`** (junto a `ArchiSteamFarm.exe`, dentro de `plugins/`), reemplazando el DLL si ya existía.
+4. Arranca ASF.
+
+### CLI
+
+Detén ASF primero. Sustituye `RUTA_DE_TU_ARCHISTEAMFARM` por la carpeta que contiene `ArchiSteamFarm.exe` y `plugins/`, y desde ahí descarga y extrae.
+
+> [!NOTE]
+> En PowerShell de Windows **no** uses `curl` ni `unzip` (son de Linux; `curl` ahí es un alias de `Invoke-WebRequest`). Copia el bloque **Windows**.
+
+**Windows (PowerShell)**
+
+```powershell
+cd "RUTA_DE_TU_ARCHISTEAMFARM"
+
+curl.exe -L -o ASFBotSocial.zip "https://github.com/Jeremias0618/ASF-Plugin/releases/latest/download/ASFBotSocial.zip"
+New-Item -ItemType Directory -Force -Path "plugins\ASFBotSocial" | Out-Null
+Expand-Archive -Path "ASFBotSocial.zip" -DestinationPath "plugins\ASFBotSocial" -Force
+Remove-Item "ASFBotSocial.zip"
+```
+
+**Linux / macOS**
+
+```bash
+cd "RUTA_DE_TU_ARCHISTEAMFARM"
+
+curl -L -o ASFBotSocial.zip "https://github.com/Jeremias0618/ASF-Plugin/releases/latest/download/ASFBotSocial.zip"
+mkdir -p plugins/ASFBotSocial
+unzip -o ASFBotSocial.zip -d plugins/ASFBotSocial
+rm ASFBotSocial.zip
+```
+
+Queda `plugins/ASFBotSocial/ASFBotSocial.dll`. Inicia ASF.
+
+## Estructura
 
 ```text
 ASF-Plugin/
@@ -64,7 +104,7 @@ ASF-Plugin/
 └── README-ESP.md          # esta guía
 ```
 
-### IPC (resumen)
+## IPC (resumen)
 
 Prefijo: `/Api/BotSocial/{botNames}/…`  
 Auth: la misma que el IPC de ASF (`Authentication` / `IPCPassword`).
@@ -80,7 +120,7 @@ Auth: la misma que el IPC de ASF (`Authentication` / `IPCPassword`).
 
 La **lectura** de inventario usa el IPC oficial de ASF (`GET /Api/Bot/{bot}/Inventory…`). La transferencia está en este plugin.
 
-### Compatibilidad
+## Compatibilidad
 
 - **Web UI:** solo [Jeremias0618/ASF-ui](https://github.com/Jeremias0618/ASF-ui). La UI oficial de ASF **no** es compatible.
 - El DLL del plugin debe coincidir con la versión **exacta** de `ArchiSteamFarm.exe` (strong-name).

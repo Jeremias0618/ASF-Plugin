@@ -2,6 +2,10 @@
 
 All notable changes to **ASFBotSocial** are documented in this file.
 
+### [2026-08-15] Install CLI
+
+- **README:** `cd` to the ArchiSteamFarm folder and extract `ASFBotSocial.zip` into `plugins/ASFBotSocial/`. (`README.md`, `README-ESP.md`)
+
 ### [2026-08-15] Repo hygiene
 
 - **Dependabot:** removed `.github/dependabot.yml` so weekly version-update PRs are no longer opened.
