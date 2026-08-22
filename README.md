@@ -44,7 +44,7 @@
 
 | Path | Role | Version |
 |------|------|---------|
-| `ASFBotSocial/` | IPC JSON: friends, community, games, wishlist, inventory transfer, trade offers | **1.1.50** |
+| `ASFBotSocial/` | IPC JSON: friends, community, games, wishlist, inventory transfer, trade offers | **1.1.50** | 
 
 Consumed by [ASF-ui](https://github.com/Jeremias0618/ASF-ui) bot social modals (`/bot/:name/…`).
 
