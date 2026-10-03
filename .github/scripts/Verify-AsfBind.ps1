@@ -8,17 +8,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Resolve paths before Set-Location into the temp BindCheck project (relative paths would break).
+$PluginDll = (Resolve-Path -LiteralPath $PluginDll).Path
+if ($AsfCheckoutPath) {
+	$AsfCheckoutPath = (Resolve-Path -LiteralPath $AsfCheckoutPath).Path
+}
+
 if (-not (Test-Path -LiteralPath $PluginDll)) {
 	throw "Plugin DLL not found: $PluginDll"
 }
 
 $expected = [version]$ExpectedAsfVersion
+Write-Host "Checking bind for: $PluginDll (expect ASF $ExpectedAsfVersion)"
 
 if ($AsfCheckoutPath) {
-	if (-not (Test-Path -LiteralPath $AsfCheckoutPath)) {
-		throw "ASF checkout path not found: $AsfCheckoutPath"
-	}
-
 	Push-Location $AsfCheckoutPath
 	try {
 		$exact = git describe --tags --exact-match HEAD 2>$null
@@ -58,7 +61,13 @@ static class Program {
 			return 2;
 		}
 
-		string pluginDll = Path.GetFullPath(args[0]);
+		string pluginDll = Path.IsPathRooted(args[0])
+			? args[0]
+			: Path.GetFullPath(args[0]);
+		if (!File.Exists(pluginDll)) {
+			Console.Error.WriteLine($"FAIL: plugin DLL not found: {pluginDll}");
+			return 1;
+		}
 		Version expected = Version.Parse(args[1]);
 		string runtimeDir = RuntimeEnvironment.GetRuntimeDirectory();
 		string[] paths = Directory.GetFiles(runtimeDir, "*.dll")
