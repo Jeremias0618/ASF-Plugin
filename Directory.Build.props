@@ -7,6 +7,14 @@
 		<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
 		<TreatWarningsAsErrors>false</TreatWarningsAsErrors>
 		<NoWarn>CA1031;CS1591</NoWarn>
+		<!--
+			Single source of truth for ArchiSteamFarm strong-name binding.
+			Must match ArchiSteamFarm.exe at runtime. Updated by:
+			- .github/workflows/update-asf.yml (daily)
+			- Renovate customManagers (optional)
+			Do not duplicate this value in ci.yml / release.yml.
+		-->
+		<ASFTargetVersion>6.3.10.3</ASFTargetVersion>
 		<!-- Deterministic builds in CI -->
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
 	</PropertyGroup>

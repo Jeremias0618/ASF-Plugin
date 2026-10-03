@@ -3,11 +3,10 @@
 		<OutputType>Library</OutputType>
 		<AssemblyName>ASFBotSocial</AssemblyName>
 		<RootNamespace>ASFBotSocial</RootNamespace>
-		<Version>1.1.50</Version>
+		<Version>1.1.51</Version>
 		<Authors>Jeremias0618</Authors>
 		<Description>ASF plugin: friends, games, wishlist and inventory transfer IPC for ASF-ui Bot Social Hub.</Description>
-		<!-- Must match ArchiSteamFarm.exe used at runtime (strong-name bind). -->
-		<ASFTargetVersion>6.3.8.4</ASFTargetVersion>
+		<!-- ASFTargetVersion is defined once in Directory.Build.props -->
 	</PropertyGroup>
 
 	<!-- Resolve ArchiSteamFarm project for monorepo sibling OR local/CI checkout under ASF-Plugin/ArchiSteamFarm. -->
@@ -19,15 +18,15 @@
 	<Target Name="EnsureAsfProjectPath" BeforeTargets="ResolveProjectReferences">
 		<Error
 			Condition="'$(ASFProjectPath)' == '' OR !Exists('$(ASFProjectPath)')"
-			Text="ArchiSteamFarm project not found. Clone JustArchiNET/ArchiSteamFarm next to this repo (monorepo) or under ASF-Plugin/ArchiSteamFarm (see scripts/setup-asf-ref.ps1), or pass -p:ASFProjectPath=..." />
+			Text="ArchiSteamFarm project not found. Clone JustArchiNET/ArchiSteamFarm next to this repo (monorepo) or under ASF-Plugin/ArchiSteamFarm at the ASFTargetVersion tag, or pass -p:ASFProjectPath=..." />
 	</Target>
 
 	<ItemGroup>
 		<PackageReference Include="JetBrains.Annotations" Version="2024.3.0" PrivateAssets="all" />
-		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
-		<PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+		<PackageReference Include="Microsoft.OpenApi" Version="2.12.0" />
 		<PackageReference Include="SteamKit2" Version="3.4.0" />
-		<PackageReference Include="System.Composition.AttributedModel" Version="10.0.11" />
+		<PackageReference Include="System.Composition.AttributedModel" Version="10.0.12" />
 	</ItemGroup>
 
 	<ItemGroup>

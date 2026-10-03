@@ -1,0 +1,184 @@
+name: Release on version bump
+
+# After an ASF bump (or any plugin Version change) lands on main:
+# 1) build + verify bind against ASFTargetVersion
+# 2) create tag vX.Y.Z only if build succeeded and tag/release are absent
+# 3) publish ASFBotSocial.zip
+#
+# Tag is NEVER created before a green build (avoids orphan tags).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ASFBotSocial/ASFBotSocial.csproj"
+      - "Directory.Build.props"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-on-bump
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+  DOTNET_SDK_VERSION: "10.0.x"
+
+jobs:
+  release:
+    name: Build, tag, and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    # Only publish from the default branch tip (never from PR code).
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Read versions
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          plugin="$(sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' ASFBotSocial/ASFBotSocial.csproj | head -n1)"
+          asf="$(sed -n 's/.*<ASFTargetVersion>\([^<]*\)<\/ASFTargetVersion>.*/\1/p' Directory.Build.props | head -n1)"
+          if [[ -z "$plugin" || -z "$asf" ]]; then
+            echo "::error::Plugin Version or ASFTargetVersion missing"
+            exit 1
+          fi
+          if [[ ! "$asf" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid ASFTargetVersion '$asf'"
+            exit 1
+          fi
+          if [[ ! "$plugin" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid plugin Version '$plugin' (expected X.Y.Z)"
+            exit 1
+          fi
+          echo "plugin=$plugin" >> "$GITHUB_OUTPUT"
+          echo "asf=$asf" >> "$GITHUB_OUTPUT"
+          echo "tag=v${plugin}" >> "$GITHUB_OUTPUT"
+          echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Guard against duplicate tag/release
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.ver.outputs.tag }}"
+          sha="${{ steps.ver.outputs.sha }}"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Release $tag already exists — skipping."
+            exit 0
+          fi
+
+          tag_exists=false
+          if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+            tag_exists=true
+            git fetch origin "refs/tags/${tag}:refs/tags/${tag}" --force
+            remote_sha="$(git rev-list -n 1 "$tag")"
+            if [[ "$remote_sha" != "$sha" ]]; then
+              echo "::error::Tag $tag already points to $remote_sha, not current $sha. Refusing to republish."
+              exit 1
+            fi
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
+          echo "Will build, then publish $tag (tag_exists=$tag_exists)."
+
+      - name: Checkout ArchiSteamFarm
+        if: steps.guard.outputs.skip != 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: JustArchiNET/ArchiSteamFarm
+          ref: ${{ steps.ver.outputs.asf }}
+          path: ArchiSteamFarm
+          persist-credentials: false
+          show-progress: false
+
+      - name: Setup .NET
+        if: steps.guard.outputs.skip != 'true'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Build Release
+        if: steps.guard.outputs.skip != 'true'
+        run: >
+          dotnet build ASFBotSocial/ASFBotSocial.csproj
+          -c Release
+          --nologo
+          -p:ASFTargetVersion=${{ steps.ver.outputs.asf }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Verify ASF tag + assembly bind
+        if: steps.guard.outputs.skip != 'true'
+        shell: pwsh
+        run: >
+          ./.github/scripts/Verify-AsfBind.ps1
+          -PluginDll "ASFBotSocial/bin/Release/net10.0/ASFBotSocial.dll"
+          -ExpectedAsfVersion "${{ steps.ver.outputs.asf }}"
+          -AsfCheckoutPath "ArchiSteamFarm"
+
+      - name: Pack ZIP
+        if: steps.guard.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $dll = "ASFBotSocial/bin/Release/net10.0/ASFBotSocial.dll"
+          if (-not (Test-Path $dll)) { throw "Missing $dll" }
+          New-Item -ItemType Directory -Force -Path dist/ASFBotSocial | Out-Null
+          Copy-Item -Force $dll dist/ASFBotSocial/
+          if (Test-Path dist/ASFBotSocial.zip) { Remove-Item -Force dist/ASFBotSocial.zip }
+          Compress-Archive -Path dist/ASFBotSocial/* -DestinationPath dist/ASFBotSocial.zip -Force
+          if (-not (Test-Path dist/ASFBotSocial.zip)) { throw "ZIP was not created" }
+
+      - name: Create tag after green build
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.ver.outputs.tag }}"
+          plugin="${{ steps.ver.outputs.plugin }}"
+          asf="${{ steps.ver.outputs.asf }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+            echo "Tag $tag already on origin — reusing for release asset."
+          else
+            git tag -a "$tag" -m "ASFBotSocial ${plugin} for ArchiSteamFarm ${asf}"
+            git push origin "$tag"
+            echo "Pushed $tag (after successful build + bind verify)."
+          fi
+
+      - name: Publish GitHub Release
+        if: steps.guard.outputs.skip != 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ASFBotSocial ${{ steps.ver.outputs.plugin }} (ASF ${{ steps.ver.outputs.asf }})
+          fail_on_unmatched_files: true
+          body: |
+            Compatible with **ArchiSteamFarm ${{ steps.ver.outputs.asf }}** (exact strong-name match required).
+
+            CI verified: ASF git tag + plugin assembly reference bind.
+
+            Install: extract `ASFBotSocial.zip` into `plugins/ASFBotSocial/` next to `ArchiSteamFarm.exe`.
+
+            Runtime smoke test (manual): start ASF ${{ steps.ver.outputs.asf }}, confirm plugin loads, `GET /Api/BotSocial/{bot}/Status`.
+          files: dist/ASFBotSocial.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

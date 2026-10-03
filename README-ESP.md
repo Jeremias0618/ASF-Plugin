@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://github.com/Jeremias0618/ASF-Plugin/actions/workflows/ci.yml"><img src="https://github.com/Jeremias0618/ASF-Plugin/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License" /></a>
-  <img src="https://img.shields.io/badge/ASF-6.3.8.4-informational" alt="ASF target" />
+  <img src="https://img.shields.io/badge/ASF-6.3.10.3-informational" alt="ASF target" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4" alt=".NET" />
   <a href="https://github.com/Jeremias0618/ASF-Plugin/releases">
     <img src="https://img.shields.io/github/downloads/Jeremias0618/ASF-Plugin/total?style=flat&label=descargas" alt="Descargas de GitHub Releases" />
@@ -44,7 +44,7 @@
 
 | Ruta | Rol | Versión |
 |------|-----|---------|
-| `ASFBotSocial/` | IPC JSON: amigos, comunidad, juegos, wishlist, transferencia de inventario, ofertas de intercambio | **1.1.50** |
+| `ASFBotSocial/` | IPC JSON: amigos, comunidad, juegos, wishlist, transferencia de inventario, ofertas de intercambio | **1.1.51** |
 
 Lo consume [ASF-ui](https://github.com/Jeremias0618/ASF-ui) en los modales sociales del bot (`/bot/:name/…`).
 
@@ -127,7 +127,7 @@ La **lectura** de inventario usa el IPC oficial de ASF (`GET /Api/Bot/{bot}/Inve
 
 - **Web UI:** solo [Jeremias0618/ASF-ui](https://github.com/Jeremias0618/ASF-ui). La UI oficial de ASF **no** es compatible.
 - El DLL del plugin debe coincidir con la versión **exacta** de `ArchiSteamFarm.exe` (strong-name).
-- Objetivo actual: **6.3.8.4** (`ASFTargetVersion` en el `.csproj`).
+- Objetivo actual: **6.3.10.3** (`ASFTargetVersion` en `Directory.Build.props` — única fuente de verdad).
 - Reinicia ASF después de copiar el DLL (y de desplegar la UI del fork en `www/`).
 - Las mutaciones tienen rate limit. El abuso puede vulnerar los ToS de Steam.
 
@@ -145,7 +145,11 @@ dotnet build ASFBotSocial/ASFBotSocial.csproj -c Release
 | Workflow | Disparador | Propósito |
 |----------|------------|-----------|
 | **Plugin CI** | push/PR a `main`/`develop` | Build Release (Ubuntu), artefacto DLL |
-| **Plugin Release** | tag `v*` | ZIP + GitHub Release |
+| **Update ASF target** | cron diario + manual | Detecta releases de [ArchiSteamFarm](https://github.com/JustArchiNET/ArchiSteamFarm) → abre PR (solo archivos en allowlist) |
+| **Release on version bump** | push a `main` (cambio de versión) | Build + verificación de bind → tag `vX.Y.Z` → ZIP (nunca etiqueta antes de un build verde) |
+| **Plugin Release** | tag `v*` | Misma verificación; omite si el release ya existe |
+
+La versión de ASF **no** se duplica en los workflows: CI/Release leen `Directory.Build.props`. El CI comprueba el tag de ASF y el bind del DLL; el smoke test en runtime sigue siendo manual. Fusiona los PR de bump solo si el CI está en verde. Activa protección de rama según [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Ver [CONTRIBUTING.md](CONTRIBUTING.md) (en inglés).
 

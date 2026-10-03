@@ -2,6 +2,14 @@
 
 All notable changes to **ASFBotSocial** are documented in this file.
 
+### [1.1.51] - 2026-10-02
+
+- **ASF target:** bump **6.3.8.4 → 6.3.10.3** (exact strong-name match with current stable ASF).
+- **NuGet:** align with ASF 6.3.10.3 — `Microsoft.AspNetCore.OpenApi` / `System.Composition.AttributedModel` **10.0.12**, `Microsoft.OpenApi` **2.12.0**.
+- **Versioning:** `ASFTargetVersion` lives only in `Directory.Build.props`; CI/Release read it from there.
+- **Automation:** daily `update-asf` workflow opens PRs when [ArchiSteamFarm](https://github.com/JustArchiNET/ArchiSteamFarm) publishes a new stable release; `release-on-bump` tags and publishes `ASFBotSocial.zip` after a green build.
+- **Hardening:** CI verifies ASF git tag + DLL assembly bind; release tags only after successful build; write workflows never run on untrusted PR code; CODEOWNERS for workflow paths.
+
 ### [2026-08-15] Install CLI
 
 - **README:** `cd` to the ArchiSteamFarm folder and extract `ASFBotSocial.zip` into `plugins/ASFBotSocial/`. (`README.md`, `README-ESP.md`)

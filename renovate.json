@@ -1,0 +1,58 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "America/Bogota",
+  "schedule": [
+    "before 7am on monday"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "ASF target bumps use the custom daily Actions workflow; Renovate only assists NuGet / Actions.",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDepNames": [
+        "JustArchiNET/ArchiSteamFarm"
+      ],
+      "enabled": false
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "matchManagers": [
+        "nuget"
+      ],
+      "groupName": "NuGet packages",
+      "excludePackageNames": [
+        "Microsoft.OpenApi"
+      ]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track ArchiSteamFarm tags via Directory.Build.props (disabled by default; enable if you prefer Renovate over update-asf.yml).",
+      "fileMatch": [
+        "^Directory\\.Build\\.props$"
+      ],
+      "matchStrings": [
+        "<ASFTargetVersion>(?<currentValue>[^<]+)</ASFTargetVersion>"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "JustArchiNET/ArchiSteamFarm",
+      "extractVersionTemplate": "^(?<version>\\d+\\.\\d+\\.\\d+\\.\\d+)$"
+    }
+  ]
+}

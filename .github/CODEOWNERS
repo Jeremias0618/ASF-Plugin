@@ -1,0 +1,6 @@
+# Require review for workflow / automation changes (enable branch protection + required reviews).
+# See CONTRIBUTING.md → "Branch protection (required for production)".
+* @Jeremias0618
+.github/workflows/** @Jeremias0618
+.github/scripts/** @Jeremias0618
+Directory.Build.props @Jeremias0618

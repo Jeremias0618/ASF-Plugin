@@ -11,6 +11,7 @@ concurrency:
   group: plugin-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Read-only: never grant write on PR / fork workflows.
 permissions:
   contents: read
 
@@ -18,7 +19,6 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
   DOTNET_SDK_VERSION: "10.0.x"
-  ASF_TARGET_VERSION: "6.3.8.4"
 
 jobs:
   build:
@@ -30,14 +30,33 @@ jobs:
       - name: Checkout plugin
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           show-progress: false
+
+      - name: Resolve ASF target version
+        id: asf
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="$(sed -n 's/.*<ASFTargetVersion>\([^<]*\)<\/ASFTargetVersion>.*/\1/p' Directory.Build.props | head -n1)"
+          if [[ -z "$ver" ]]; then
+            echo "::error::ASFTargetVersion not found in Directory.Build.props"
+            exit 1
+          fi
+          if [[ ! "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::ASFTargetVersion '$ver' is not a valid ASF version tag"
+            exit 1
+          fi
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "Building against ASF $ver"
 
       - name: Checkout ArchiSteamFarm
         uses: actions/checkout@v7
         with:
           repository: JustArchiNET/ArchiSteamFarm
-          ref: ${{ env.ASF_TARGET_VERSION }}
+          ref: ${{ steps.asf.outputs.version }}
           path: ArchiSteamFarm
+          persist-credentials: false
           show-progress: false
 
       - name: Setup .NET
@@ -56,9 +75,17 @@ jobs:
           dotnet build ASFBotSocial/ASFBotSocial.csproj
           -c Release
           --nologo
-          -p:ASFTargetVersion=${{ env.ASF_TARGET_VERSION }}
+          -p:ASFTargetVersion=${{ steps.asf.outputs.version }}
           -p:ContinuousIntegrationBuild=true
           --no-restore
+
+      - name: Verify ASF tag + assembly bind
+        shell: pwsh
+        run: >
+          ./.github/scripts/Verify-AsfBind.ps1
+          -PluginDll "ASFBotSocial/bin/Release/net10.0/ASFBotSocial.dll"
+          -ExpectedAsfVersion "${{ steps.asf.outputs.version }}"
+          -AsfCheckoutPath "ArchiSteamFarm"
 
       - name: Upload Release DLL
         uses: actions/upload-artifact@v7

@@ -1,0 +1,184 @@
+name: Update ASF target
+
+# Daily check against JustArchiNET/ArchiSteamFarm.
+# Opens a PR that bumps ASFTargetVersion (+ plugin patch) when a newer stable release exists.
+# CI must pass on the PR before merge. Releases are created by release-on-bump after merge.
+#
+# Security:
+# - Runs only on schedule / workflow_dispatch (trusted repo context), never on pull_request.
+# - Commits are limited to an allowlist of files (no .github/workflow mutations).
+# - Does not use pull_request_target.
+
+on:
+  schedule:
+    # 06:00 UTC daily
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      include_prereleases:
+        description: "Also consider ASF pre-releases (release candidates)"
+        required: false
+        type: boolean
+        default: false
+      force_version:
+        description: "Optional exact ASF tag to target (e.g. 6.3.10.3). Leave empty to use latest."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-asf
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Detect and open PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Never run untrusted PR code with write permissions.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Detect ASF update and open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INCLUDE_PRERELEASES: ${{ inputs.include_prereleases == true && 'true' || 'false' }}
+          FORCE_VERSION: ${{ inputs.force_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current="$(sed -n 's/.*<ASFTargetVersion>\([^<]*\)<\/ASFTargetVersion>.*/\1/p' Directory.Build.props | head -n1)"
+          plugin="$(sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' ASFBotSocial/ASFBotSocial.csproj | head -n1)"
+
+          if [[ -z "$current" || -z "$plugin" ]]; then
+            echo "::error::Missing ASFTargetVersion or plugin Version"
+            exit 1
+          fi
+
+          if [[ -n "${FORCE_VERSION:-}" ]]; then
+            latest="$FORCE_VERSION"
+          elif [[ "$INCLUDE_PRERELEASES" == "true" ]]; then
+            latest="$(gh api "repos/JustArchiNET/ArchiSteamFarm/releases?per_page=20" --jq '[.[] | select(.draft == false)][0].tag_name')"
+          else
+            latest="$(gh api repos/JustArchiNET/ArchiSteamFarm/releases/latest --jq .tag_name)"
+          fi
+
+          if [[ -z "$latest" ]]; then
+            echo "::error::Could not resolve latest ASF tag"
+            exit 1
+          fi
+
+          if [[ ! "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Refusing non-semver ASF tag '$latest'"
+            exit 1
+          fi
+
+          if ! gh api "repos/JustArchiNET/ArchiSteamFarm/git/ref/tags/${latest}" >/dev/null 2>&1; then
+            echo "::error::ASF tag '${latest}' does not exist"
+            exit 1
+          fi
+
+          echo "Current ASF=$current | Latest ASF=$latest | Plugin=$plugin"
+
+          if [[ "$current" == "$latest" ]]; then
+            echo "Already targeting ASF $current. Nothing to do."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          branch="chore/asf-${latest}"
+          git checkout -B "$branch" origin/main
+
+          # Re-read after switching to main tip
+          current="$(sed -n 's/.*<ASFTargetVersion>\([^<]*\)<\/ASFTargetVersion>.*/\1/p' Directory.Build.props | head -n1)"
+          plugin="$(sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' ASFBotSocial/ASFBotSocial.csproj | head -n1)"
+          IFS='.' read -r maj min pat <<< "$plugin"
+          new_plugin="${maj}.${min}.$((pat + 1))"
+
+          if [[ "$current" == "$latest" ]]; then
+            echo "main already targets ASF $latest."
+            exit 0
+          fi
+
+          sed -i "s|<ASFTargetVersion>${current}</ASFTargetVersion>|<ASFTargetVersion>${latest}</ASFTargetVersion>|" Directory.Build.props
+          sed -i "s|<Version>${plugin}</Version>|<Version>${new_plugin}</Version>|" ASFBotSocial/ASFBotSocial.csproj
+
+          for f in README.md README-ESP.md; do
+            [[ -f "$f" ]] || continue
+            sed -i "s|ASF-${current}-|ASF-${latest}-|g" "$f"
+            sed -i "s|\*\*${current}\*\*|**${latest}**|g" "$f"
+            sed -i "s|\*\*${plugin}\*\*|**${new_plugin}**|g" "$f"
+          done
+
+          # Allowlist only — refuse unexpected paths (especially .github/workflows).
+          mapfile -t changed < <(git status --porcelain | awk '{print $2}')
+          allow=(
+            "Directory.Build.props"
+            "ASFBotSocial/ASFBotSocial.csproj"
+            "README.md"
+            "README-ESP.md"
+          )
+          for path in "${changed[@]}"; do
+            ok=false
+            for a in "${allow[@]}"; do
+              if [[ "$path" == "$a" ]]; then ok=true; break; fi
+            done
+            if [[ "$ok" != "true" ]]; then
+              echo "::error::Refusing to commit non-allowlisted path: $path"
+              exit 1
+            fi
+          done
+
+          git add Directory.Build.props ASFBotSocial/ASFBotSocial.csproj README.md README-ESP.md
+          if git diff --cached --quiet; then
+            echo "No file changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: target ASF ${latest} (plugin v${new_plugin})"
+          git push --force-with-lease -u origin "$branch"
+
+          cat > /tmp/pr-body.md <<EOF
+## Summary
+- Bump ASF target **${current} → ${latest}** ([ArchiSteamFarm ${latest}](https://github.com/JustArchiNET/ArchiSteamFarm/releases/tag/${latest})).
+- Bump plugin version **${plugin} → ${new_plugin}** so a matching GitHub Release can be published after merge.
+
+## Notes
+- Single source of truth: \`Directory.Build.props\` → \`ASFTargetVersion\`.
+- CI must build + verify ASF bind against tag \`${latest}\` before merge.
+- After merge, \`Release on version bump\` creates tag \`v${new_plugin}\` **only after** a green build and publishes \`ASFBotSocial.zip\`.
+- This PR must not modify \`.github/workflows\` (allowlisted files only).
+
+## Test plan
+- [ ] Plugin CI passes (build + ASF bind verify)
+- [ ] Manual smoke: DLL loads in ArchiSteamFarm.exe **${latest}**
+- [ ] \`GET /Api/BotSocial/{bot}/Status\` responds after restart
+EOF
+
+          gh label create "asf-bump" --description "Automated ArchiSteamFarm version bump" --color "0E8A16" 2>/dev/null || true
+
+          existing="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "$existing" ]]; then
+            gh pr edit "$existing" --title "chore: target ASF ${latest}" --body-file /tmp/pr-body.md
+            gh pr edit "$existing" --add-label "asf-bump" 2>/dev/null || true
+            echo "Updated PR #$existing"
+          else
+            gh pr create \
+              --title "chore: target ASF ${latest}" \
+              --body-file /tmp/pr-body.md \
+              --base main \
+              --head "$branch" \
+              --label "asf-bump"
+          fi
