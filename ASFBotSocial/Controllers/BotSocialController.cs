@@ -22,6 +22,7 @@ public sealed class BotSocialController : ArchiController {
 	private static readonly FollowersService Followers = new();
 	private static readonly CuratorsService Curators = new();
 	private static readonly ReviewsService Reviews = new();
+	private static readonly OwnReviewsService OwnReviews = new();
 	private static readonly SharedFilesService SharedFiles = new();
 	private static readonly GamesService Games = new();
 	private static readonly AchievementsService Achievements = new();
@@ -37,6 +38,9 @@ public sealed class BotSocialController : ArchiController {
 	private static readonly EndpointRateLimiter FollowersWriteLimiter = new(TimeSpan.FromSeconds(3));
 	private static readonly EndpointRateLimiter CuratorsWriteLimiter = new(TimeSpan.FromSeconds(3));
 	private static readonly EndpointRateLimiter ReviewsWriteLimiter = new(TimeSpan.FromSeconds(3));
+	private static readonly EndpointRateLimiter OwnReviewsReadLimiter = new(TimeSpan.FromSeconds(1.5));
+	private static readonly EndpointRateLimiter OwnReviewsDetailLimiter = new(TimeSpan.FromSeconds(1.5));
+	private static readonly EndpointRateLimiter OwnReviewsWriteLimiter = new(TimeSpan.FromSeconds(3));
 	private static readonly EndpointRateLimiter SharedFilesWriteLimiter = new(TimeSpan.FromSeconds(3));
 	private static readonly EndpointRateLimiter GamesReadLimiter = new(TimeSpan.FromSeconds(2));
 	private static readonly EndpointRateLimiter GamesSearchLimiter = new(TimeSpan.FromSeconds(1));
@@ -377,6 +381,214 @@ public sealed class BotSocialController : ArchiController {
 		}
 
 		return Ok(new GenericResponse<IReadOnlyDictionary<string, MutationsResponse>>(result));
+	}
+
+	/// <summary>
+	/// Page of the reviews written by one bot account (author = the bot's own SteamID, never a parameter).
+	/// Listing is read-only; publish and edit are the POST / PUT routes below. Delete is not exposed.
+	/// </summary>
+	[HttpGet("OwnReviews")]
+	[ProducesResponseType<GenericResponse<IReadOnlyDictionary<string, OwnReviewsResponse>>>((int) HttpStatusCode.OK)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.BadRequest)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.ServiceUnavailable)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.TooManyRequests)]
+	public async Task<ActionResult<GenericResponse>> OwnReviewsGet(string botNames, [FromQuery] uint page = 1) {
+		HashSet<Bot>? bots = GetConnectedBotsOrNull(botNames, out ActionResult<GenericResponse>? error);
+
+		if (bots == null) {
+			return error!;
+		}
+
+		if (bots.Count != 1) {
+			return BadRequest(new GenericResponse(false, "OwnReviews accepts exactly one bot"));
+		}
+
+		ActionResult<GenericResponse>? limited = AcquireForBots(bots, "OwnReviews", OwnReviewsReadLimiter);
+
+		if (limited != null) {
+			return limited;
+		}
+
+		Bot bot = bots.First();
+		OwnReviewsResult<OwnReviewsResponse> outcome = await OwnReviews.ListAsync(bot, page, HttpContext.RequestAborted).ConfigureAwait(false);
+
+		if (outcome.Value == null) {
+			return OwnReviewsFailure(outcome.Error, outcome.Message);
+		}
+
+		Dictionary<string, OwnReviewsResponse> result = new(1, BotNameComparer) {
+			[bot.BotName] = outcome.Value,
+		};
+
+		return Ok(new GenericResponse<IReadOnlyDictionary<string, OwnReviewsResponse>>(result));
+	}
+
+	/// <summary>Detail of the review the bot account wrote for one app (full text, counters, awards).</summary>
+	[HttpGet("OwnReviews/{appId:int:min(1)}")]
+	[ProducesResponseType<GenericResponse<IReadOnlyDictionary<string, OwnReviewDetailResponse>>>((int) HttpStatusCode.OK)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.BadRequest)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.NotFound)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.ServiceUnavailable)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.TooManyRequests)]
+	public async Task<ActionResult<GenericResponse>> OwnReviewsDetailGet(string botNames, uint appId) {
+		if (appId == 0) {
+			return BadRequest(new GenericResponse(false, "AppID required"));
+		}
+
+		HashSet<Bot>? bots = GetConnectedBotsOrNull(botNames, out ActionResult<GenericResponse>? error);
+
+		if (bots == null) {
+			return error!;
+		}
+
+		if (bots.Count != 1) {
+			return BadRequest(new GenericResponse(false, "OwnReviews accepts exactly one bot"));
+		}
+
+		ActionResult<GenericResponse>? limited = AcquireForBots(bots, "OwnReviewsDetail", OwnReviewsDetailLimiter);
+
+		if (limited != null) {
+			return limited;
+		}
+
+		Bot bot = bots.First();
+		OwnReviewsResult<OwnReviewDetailResponse> outcome = await OwnReviews.GetAsync(bot, appId, HttpContext.RequestAborted).ConfigureAwait(false);
+
+		if (outcome.Value == null) {
+			return OwnReviewsFailure(outcome.Error, outcome.Message);
+		}
+
+		Dictionary<string, OwnReviewDetailResponse> result = new(1, BotNameComparer) {
+			[bot.BotName] = outcome.Value,
+		};
+
+		return Ok(new GenericResponse<IReadOnlyDictionary<string, OwnReviewDetailResponse>>(result));
+	}
+
+	/// <summary>Raw text and settings Steam's edit form holds for the bot's review of one app (author = the bot).</summary>
+	[HttpGet("OwnReviews/{appId:int:min(1)}/Editor")]
+	[ProducesResponseType<GenericResponse<IReadOnlyDictionary<string, OwnReviewEditorResponse>>>((int) HttpStatusCode.OK)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.BadRequest)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.NotFound)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.ServiceUnavailable)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.TooManyRequests)]
+	public async Task<ActionResult<GenericResponse>> OwnReviewsEditorGet(string botNames, uint appId) {
+		if (appId == 0) {
+			return BadRequest(new GenericResponse(false, "AppID required"));
+		}
+
+		(Bot? bot, ActionResult<GenericResponse>? failure) = SingleBotForOwnReviews(botNames, "OwnReviewsEditor", OwnReviewsDetailLimiter);
+
+		if (bot == null) {
+			return failure!;
+		}
+
+		OwnReviewsResult<OwnReviewEditorResponse> outcome = await OwnReviews.GetEditorAsync(bot, appId, HttpContext.RequestAborted).ConfigureAwait(false);
+
+		if (outcome.Value == null) {
+			return OwnReviewsFailure(outcome.Error, outcome.Message);
+		}
+
+		Dictionary<string, OwnReviewEditorResponse> result = new(1, BotNameComparer) {
+			[bot.BotName] = outcome.Value,
+		};
+
+		return Ok(new GenericResponse<IReadOnlyDictionary<string, OwnReviewEditorResponse>>(result));
+	}
+
+	/// <summary>
+	/// Publish a new review as the bot (one bot per request). Answers 409 <c>review_exists</c> when the bot already
+	/// reviewed the app, so the caller can open it for editing instead.
+	/// </summary>
+	[HttpPost("OwnReviews")]
+	[ProducesResponseType<GenericResponse<IReadOnlyDictionary<string, OwnReviewWriteResponse>>>((int) HttpStatusCode.OK)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.BadRequest)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.Conflict)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.UnprocessableEntity)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.ServiceUnavailable)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.TooManyRequests)]
+	public async Task<ActionResult<GenericResponse>> OwnReviewsPublishPost(string botNames, [FromBody] OwnReviewPublishRequest request) {
+		ArgumentNullException.ThrowIfNull(request);
+
+		(Bot? bot, ActionResult<GenericResponse>? failure) = SingleBotForOwnReviews(botNames, "OwnReviewsPublish", OwnReviewsWriteLimiter);
+
+		if (bot == null) {
+			return failure!;
+		}
+
+		OwnReviewsResult<OwnReviewWriteResponse> outcome = await OwnReviews.PublishAsync(bot, request, HttpContext.RequestAborted).ConfigureAwait(false);
+
+		if (outcome.Value == null) {
+			return OwnReviewsFailure(outcome.Error, outcome.Message);
+		}
+
+		Dictionary<string, OwnReviewWriteResponse> result = new(1, BotNameComparer) {
+			[bot.BotName] = outcome.Value,
+		};
+
+		return Ok(new GenericResponse<IReadOnlyDictionary<string, OwnReviewWriteResponse>>(result));
+	}
+
+	/// <summary>
+	/// Edit the text and/or recommendation of the bot's own review (one bot per request). The review is looked up on the
+	/// bot's own profile, and Steam renders the edit form only for the author, so another account's review can never be changed.
+	/// </summary>
+	[HttpPut("OwnReviews/{appId:int:min(1)}")]
+	[ProducesResponseType<GenericResponse<IReadOnlyDictionary<string, OwnReviewWriteResponse>>>((int) HttpStatusCode.OK)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.BadRequest)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.NotFound)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.Conflict)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.UnprocessableEntity)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.ServiceUnavailable)]
+	[ProducesResponseType<GenericResponse>((int) HttpStatusCode.TooManyRequests)]
+	public async Task<ActionResult<GenericResponse>> OwnReviewsEditPut(string botNames, uint appId, [FromBody] OwnReviewEditRequest request) {
+		ArgumentNullException.ThrowIfNull(request);
+
+		if (appId == 0) {
+			return BadRequest(new GenericResponse(false, "AppID required"));
+		}
+
+		(Bot? bot, ActionResult<GenericResponse>? failure) = SingleBotForOwnReviews(botNames, "OwnReviewsEdit", OwnReviewsWriteLimiter);
+
+		if (bot == null) {
+			return failure!;
+		}
+
+		OwnReviewsResult<OwnReviewWriteResponse> outcome = await OwnReviews.EditAsync(bot, appId, request, HttpContext.RequestAborted).ConfigureAwait(false);
+
+		if (outcome.Value == null) {
+			return OwnReviewsFailure(outcome.Error, outcome.Message);
+		}
+
+		Dictionary<string, OwnReviewWriteResponse> result = new(1, BotNameComparer) {
+			[bot.BotName] = outcome.Value,
+		};
+
+		return Ok(new GenericResponse<IReadOnlyDictionary<string, OwnReviewWriteResponse>>(result));
+	}
+
+	private (Bot? Bot, ActionResult<GenericResponse>? Failure) SingleBotForOwnReviews(string botNames, string endpoint, EndpointRateLimiter limiter) {
+		HashSet<Bot>? bots = GetConnectedBotsOrNull(botNames, out ActionResult<GenericResponse>? error);
+
+		if (bots == null) {
+			return (null, error);
+		}
+
+		if (bots.Count != 1) {
+			return (null, BadRequest(new GenericResponse(false, "OwnReviews accepts exactly one bot")));
+		}
+
+		ActionResult<GenericResponse>? limited = AcquireForBots(bots, endpoint, limiter);
+
+		return limited != null ? (null, limited) : (bots.First(), null);
+	}
+
+	private ActionResult<GenericResponse> OwnReviewsFailure(OwnReviewsError reason, string message) {
+		// Stable machine-readable prefix ("session_expired: ...") so clients can branch without parsing prose.
+		return StatusCode(
+			(int) OwnReviewsService.ToStatusCode(reason),
+			new GenericResponse(false, OwnReviewsService.ErrorCode(reason) + ": " + message)
+		);
 	}
 
 	/// <summary>Vote and/or favorite a Steam shared file (screenshot, artwork, workshop, guide).</summary>

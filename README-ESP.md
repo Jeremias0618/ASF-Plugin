@@ -120,8 +120,29 @@ Auth: la misma que el IPC de ASF (`Authentication` / `IPCPassword`).
 | Juegos | Library, Search, Stats, Achievements, Add, DiscoveryQueue |
 | Wishlist | List / Add / Remove / FollowAndAdd |
 | Inventario | `POST /Inventory/Transfer`, TradeOffers |
+| Reseñas propias | `GET /OwnReviews?page=N`, `GET /OwnReviews/{appId}`, `GET /OwnReviews/{appId}/Editor`, `POST /OwnReviews`, `PUT /OwnReviews/{appId}` (un bot por petición) |
 
 La **lectura** de inventario usa el IPC oficial de ASF (`GET /Api/Bot/{bot}/Inventory…`). La transferencia está en este plugin.
+
+### Reseñas propias (`/OwnReviews`)
+
+Reseñas escritas por **la propia cuenta del bot**. El autor es siempre el SteamID64 del bot (no hay parámetro de autor), los IDs viajan como cadenas y cada petición acepta exactamente un bot. `Reviews/Vote` no cambia.
+
+- `GET /OwnReviews?page=N` — 10 entradas por página (fijo en Steam). `Total`, `HasMore` y `Complete` indican si la lista se leyó hasta el final; `Status: empty_unconfirmed` significa que Steam no devolvió nada ni un total (no hay reseñas **o** el perfil no se puede leer).
+- `GET /OwnReviews/{appId}` — texto completo, recomendación, tiempo de juego, contadores útil/divertida y premios.
+- `GET /OwnReviews/{appId}/Editor` — texto en bruto tal como está guardado, recomendación actual y el límite de 8000 caracteres; sirve para rellenar el formulario de edición. Solo responde si Steam muestra el formulario de autor (es decir, la reseña es del bot).
+- `PUT /OwnReviews/{appId}` — editar una reseña propia (`{ Recommended?, Text, ConfirmRatingReset }`). La propiedad se comprueba en el servidor (el formulario de autor debe aparecer con la sesión del propio bot). Cambiar la recomendación hace que Steam borre las valoraciones útil/divertida, así que exige `ConfirmRatingReset: true`; sin él falla con `rating_reset_unconfirmed` y no se envía nada. Si no hay cambios no se llama a Steam. Solo se informa éxito (`Verified: true`) tras releer la reseña desde Steam.
+- `POST /OwnReviews` — publicar (`{ AppId, Recommended, Text, Language }`). Si el bot ya tiene una reseña de ese producto responde `409 review_exists` para que el cliente ofrezca editarla. Misma confirmación por relectura.
+- Las escrituras se serializan por bot (`operation_in_progress` si no) y nunca registran el texto de la reseña en el log.
+- Cada contador es `null` si Steam no lo devolvió; `0` solo se informa cuando Steam lo dijo. El contador de *no útil* no lo expone Steam y nunca se deduce.
+- Los errores llevan un prefijo estable en `Message` (`código: mensaje`): `400 review_invalid`, `404 review_not_found`, `409 review_exists` / `rating_reset_unconfirmed` / `operation_in_progress`, `422 steam_rejected`, `503 session_expired` / `steam_unavailable` / `steam_unexpected_page` / `bot_not_connected`. `GET /Status` anuncia `reviews.own.read`, `reviews.own.publish` y `reviews.own.edit` por separado para que los clientes detecten una DLL antigua.
+- Mismas convenciones de espera que el resto del plugin (`EndpointRateLimiter` de 1,5 s por bot en lecturas, 3 s en escrituras, y un limitador de 1,5 s hacia Steam).
+
+**Qué está verificado.** Steam no tiene API JSON para la lista de reseñas de un autor, así que se leen las páginas web de la comunidad (`/profiles/{id}/recommended/…?l=english`), lo que depende del marcado de Steam. Comprobado de forma anónima con perfiles públicos el 2026-11-25: listado paginado (`Showing x-y of N entries`), contadores útil/divertida, premios, recomendación, tiempo de juego, fecha y texto completo en el detalle. `store.steampowered.com/appreviews/{appid}?json=1` devolvió HTML en esa prueba, así que **no** se usa. Esas páginas no exponen los votos *no útil* ni los comentarios (se cargan dinámicamente).
+
+**Verificado con una cuenta real (2026-11-26, sesión propia, ASF 6.3.10.3).** Lista autenticada (6 páginas / 51 reseñas), lectura del editor, edición del texto de una reseña existente desde ASF-ui y por la API, confirmación por relectura, restauración del texto original, ida y vuelta de Unicode / BBCode / saltos de línea, el atajo sin cambios y los errores de guarda (`review_invalid`, `review_not_found`, `review_exists`). Editar usa `POST steamcommunity.com/userreviews/update/{reviewId}`; publicar usa `POST store.steampowered.com/friends/recommendgame` (las mismas llamadas que hacen las páginas web de Steam).
+
+**No verificado.** **Publicar una reseña nueva** contra Steam (el mecanismo sale del script de la propia página de Steam y de los valores por defecto del formulario; solo se ejercitaron los caminos que fallan antes de llegar a Steam), **cambiar la recomendación** de una reseña existente (irreversible para las valoraciones, por eso no se probó) y **eliminar** (no implementado: los clientes deben enviar al usuario a Steam). Steam puede rechazar una publicación por motivos que solo se ven en ese momento (tiempo de juego, cuentas restringidas, límites); vuelven como `steam_rejected`.
 
 ## Compatibilidad
 

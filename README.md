@@ -120,8 +120,29 @@ Auth: same as ASF IPC (`Authentication` / `IPCPassword`).
 | Games | Library, Search, Stats, Achievements, Add, DiscoveryQueue |
 | Wishlist | List / Add / Remove / FollowAndAdd |
 | Inventory | `POST /Inventory/Transfer`, TradeOffers |
+| Own reviews | `GET /OwnReviews?page=N`, `GET /OwnReviews/{appId}`, `GET /OwnReviews/{appId}/Editor`, `POST /OwnReviews`, `PUT /OwnReviews/{appId}` (one bot per request) |
 
 Inventory **read** uses official ASF IPC (`GET /Api/Bot/{bot}/Inventory…`). Transfer lives in this plugin.
+
+### Own reviews (`/OwnReviews`)
+
+Reviews written by the **bot account itself**. The author is always the bot's own SteamID64 (there is no author parameter), IDs travel as strings and each request accepts exactly one bot. `Reviews/Vote` is unchanged.
+
+- `GET /OwnReviews?page=N` — 10 entries per page (fixed by Steam). `Total`, `HasMore` and `Complete` say whether the list was read to its end; `Status: empty_unconfirmed` means Steam returned nothing and gave no total (no reviews **or** an unreadable profile).
+- `GET /OwnReviews/{appId}` — full text, recommendation, playtime text, helpful/funny counters and awards.
+- `GET /OwnReviews/{appId}/Editor` — raw text exactly as stored, current recommendation and the 8000-character limit; used to fill the edit form. Only answers when Steam renders the owner form (i.e. the review belongs to the bot).
+- `PUT /OwnReviews/{appId}` — edit own review (`{ Recommended?, Text, ConfirmRatingReset }`). Ownership is checked server-side (the owner form must be present for the bot's own session). Changing the recommendation makes Steam clear the helpful/funny ratings, so it needs `ConfirmRatingReset: true`; without it the call fails with `rating_reset_unconfirmed` and nothing is sent. If nothing changed Steam is not called. Success is only reported (`Verified: true`) after the review is read back from Steam.
+- `POST /OwnReviews` — publish (`{ AppId, Recommended, Text, Language }`). If the bot already has a review for that product the call answers `409 review_exists` so the client can offer to edit it. Same read-back confirmation.
+- Writes are serialised per bot (`operation_in_progress` otherwise) and never log the review text.
+- Every counter is `null` when Steam did not return it; `0` is only reported when Steam said so. The *not helpful* count is not exposed by Steam and is never derived.
+- Errors carry a stable prefix in `Message` (`code: message`): `400 review_invalid`, `404 review_not_found`, `409 review_exists` / `rating_reset_unconfirmed` / `operation_in_progress`, `422 steam_rejected`, `503 session_expired` / `steam_unavailable` / `steam_unexpected_page` / `bot_not_connected`. `GET /Status` announces `reviews.own.read`, `reviews.own.publish` and `reviews.own.edit` separately so clients can detect an older DLL.
+- Same cooldown conventions as the rest of the plugin (`EndpointRateLimiter` 1.5 s per bot for reads, 3 s for writes, and a 1.5 s Steam-side limiter).
+
+**What is verified.** Steam has no JSON API for an author's review list, so this reads the community web pages (`/profiles/{id}/recommended/…?l=english`), which depends on Steam's markup. Checked anonymously against public profiles on 2026-11-25: paged listing (`Showing x-y of N entries`), helpful/funny counters, awards, recommendation, playtime, date, full text in the detail page. `store.steampowered.com/appreviews/{appid}?json=1` returned HTML in that probe, so it is **not** used. Not exposed on those pages: *not helpful* votes and comments (loaded dynamically).
+
+**Verified with a real account (2026-11-26, own session, ASF 6.3.10.3).** Authenticated list (6 pages / 51 reviews), editor read, editing the text of an existing review from ASF-ui and through the API, read-back confirmation, restoring the original text, Unicode / BBCode / newline round trip, the no-change shortcut and the guard errors (`review_invalid`, `review_not_found`, `review_exists`). Editing uses `POST steamcommunity.com/userreviews/update/{reviewId}`; publishing uses `POST store.steampowered.com/friends/recommendgame` (the same calls the Steam web pages make).
+
+**Not verified.** **Publishing a new review** against Steam (the mechanism is taken from Steam's own page script and form defaults; only the paths that fail before reaching Steam were exercised), **changing the recommendation** of an existing review (irreversible for ratings, so it was not tried) and **deleting** (not implemented: clients must send the user to Steam). Steam may reject a publish for reasons only visible at that moment (playtime, restricted accounts, rate limits); those come back as `steam_rejected`.
 
 ## Compatibility
 

@@ -2,6 +2,9 @@
 
 All notable changes to **ASFBotSocial** are documented in this file.
 
+### [Unreleased]
+
+- **OwnReviews:** paged list and detail (capability `reviews.own.read`) plus **edit** (`PUT /OwnReviews/{appId}`, `GET /OwnReviews/{appId}/Editor`, capability `reviews.own.edit`) and **publish** (`POST /OwnReviews`, capability `reviews.own.publish`) for the bot's own reviews. Edit checks ownership server-side, asks for `ConfirmRatingReset` before changing the recommendation, and success is only reported after Steam confirms by read-back; publish answers `409 review_exists` when the product already has a review. **Verified:** editing the text of a real review and restoring it, Unicode round trip, guard errors. **Not verified:** publishing a new review and changing the recommendation of an existing one. Delete is not implemented. `Reviews/Vote` is unchanged.
 ### [1.1.51] - 2026-10-02
 
 - **ASF target:** bump **6.3.8.4 → 6.3.10.3** (exact strong-name match with current stable ASF).
