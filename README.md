@@ -130,6 +130,7 @@ Inventory **read** uses official ASF IPC (`GET /Api/Bot/{bot}/Inventory…`). Tr
 - Current target: **6.3.10.3** (`ASFTargetVersion` in `Directory.Build.props` — single source of truth).
 - Restart ASF after copying the DLL (and after deploying the fork UI to `www/`).
 - Mutations are rate-limited. Abuse risks Steam ToS issues.
+- **Steam sign-in is not part of this plugin.** ASF-ui's login wizard uses only the official ASF IPC and works without `ASFBotSocial`. ASF's own `Y/N` console questions (QR vs credentials, mobile approval vs code) cannot be answered through plugin interfaces; see the table in the [ASF-ui README](https://github.com/Jeremias0618/ASF-ui#steam-sign-in-wizard-botnamelogin).
 
 ## Development
 

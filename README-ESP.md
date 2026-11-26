@@ -130,6 +130,7 @@ La **lectura** de inventario usa el IPC oficial de ASF (`GET /Api/Bot/{bot}/Inve
 - Objetivo actual: **6.3.10.3** (`ASFTargetVersion` en `Directory.Build.props` — única fuente de verdad).
 - Reinicia ASF después de copiar el DLL (y de desplegar la UI del fork en `www/`).
 - Las mutaciones tienen rate limit. El abuso puede vulnerar los ToS de Steam.
+- **El inicio de sesión en Steam no forma parte de este plugin.** El asistente de ASF-ui usa solo el IPC oficial de ASF y funciona sin `ASFBotSocial`. Las preguntas `Y/N` de la consola de ASF (QR o credenciales, aprobación móvil o código) no se pueden responder mediante interfaces de plugin; consulta la tabla del [README de ASF-ui](https://github.com/Jeremias0618/ASF-ui/blob/main/README-ESP.md#asistente-de-inicio-de-sesión-en-steam-botnombrelogin).
 
 ## Desarrollo
 
